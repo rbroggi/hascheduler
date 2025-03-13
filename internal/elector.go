@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/rbroggi/leaderelection"
 	"github.com/rbroggi/mongoleasestore"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -14,6 +15,9 @@ import (
 
 func NewElector(db *mongo.Database) (*Elector, error) {
 	identity := os.Getenv("HOSTNAME")
+	if identity == "" {
+		identity = uuid.New().String()
+	}
 	s, err := mongoleasestore.NewStore(mongoleasestore.Args{
 		LeaseCollection: db.Collection("leases"),
 		LeaseKey:        "lease-key",

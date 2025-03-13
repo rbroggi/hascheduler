@@ -1,5 +1,5 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: mongo
 spec:
@@ -16,6 +16,11 @@ spec:
         - name: mongo
           image: mongo:6
           imagePullPolicy: IfNotPresent
+          command:
+            - "mongod"
+            - "--replSet"
+            - "rs0"
+            - "--bind_ip_all"
           ports:
             - containerPort: 27017
 ---

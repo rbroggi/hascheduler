@@ -56,21 +56,14 @@ func NewScheduler(
 //
 // For graceful shutdown, cancel the input context
 func (s *Scheduler) Start(ctx context.Context) error {
-	slog.Info("starting scheduler")
+	slog.Info("Starting scheduler")
 	// all stored schedules
 	storedSchedules, err := s.store.FindSchedules(ctx)
 	if err != nil {
 		return err
 	}
 	for _, storedSch := range storedSchedules {
-		if _, err := s.scheduler.NewJob(
-			s.toDefinition(*storedSch),
-			gocron.NewTask(func() error {
-				slog.With("schedule", storedSch).Info("running schedule")
-				return nil
-			}),
-			gocron.WithName(storedSch.Name),
-		); err != nil {
+		if err := s.upsertSchedule(*storedSch); err != nil {
 			slog.
 				With("error", err).
 				With("schedule", storedSch).
@@ -122,6 +115,7 @@ func (s *Scheduler) watchSchedules(ctx context.Context) error {
 		return fmt.Errorf("error watching schedules: %w", err)
 	}
 	for changeEvent := range scheduleChanges {
+		slog.With("changeEvent", changeEvent).Info("received schedule change event")
 		switch changeEvent.Operation {
 		case Insert, Update:
 			if err := s.upsertSchedule(*changeEvent.Data); err != nil {

@@ -14,16 +14,16 @@ const (
 )
 
 type Schedule struct {
-	ID                 string             `json:"id"`
-	Name               string             `json:"name"`
-	Type               ScheduleType       `json:"type"`
-	ScheduleDefinition ScheduleDefinition `json:"definition"`
+	ID                 string             `json:"id" bson:"_id"`
+	Name               string             `json:"name" bson:"name"`
+	Type               ScheduleType       `json:"type" bson:"type"`
+	ScheduleDefinition ScheduleDefinition `json:"definition" bson:"definition"`
 }
 
 type ScheduleDefinition struct {
-	CronExpression string         `json:"cron_expression"`
-	Times          []time.Time    `json:"times"`
-	Interval       StringDuration `json:"interval"`
+	CronExpression string         `json:"cron_expression" bson:"cron_expression"`
+	Times          []time.Time    `json:"times" bson:"times"`
+	Interval       StringDuration `json:"interval" bson:"interval"`
 }
 
 // StringDuration is a custom type for marshaling/unmarshaling time.Duration as a string.

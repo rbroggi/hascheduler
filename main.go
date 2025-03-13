@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,11 +17,12 @@ import (
 )
 
 func main() {
+	slog.SetLogLoggerLevel(slog.LevelInfo)
 	mongoURI := os.Getenv("MONGO_URI")
 	if mongoURI == "" {
 		mongoURI = "mongodb://mongo:27017"
 	}
-	fmt.Printf("Connecting to MongoDB at %s\n", mongoURI)
+	slog.Info("Connecting to MongoDB", "uri", mongoURI)
 
 	clientOptions := options.Client().ApplyURI(mongoURI)
 	client, err := mongo.Connect(context.TODO(), clientOptions)
@@ -40,13 +42,13 @@ func main() {
 	db := client.Database("demo")
 	elector, err := internal.NewElector(db)
 	if err != nil {
-		fmt.Printf("Failed to create elector: %v\n", err)
+		slog.Error("Failed to create elector", "error", err)
 		os.Exit(1)
 	}
 	store := internal.NewStore(db)
 	scheduler, err := internal.NewScheduler(elector, store)
 	if err != nil {
-		fmt.Printf("Failed to create scheduler: %v\n", err)
+		slog.Error("Failed to create scheduler", "error", err)
 		os.Exit(1)
 	}
 
@@ -61,21 +63,23 @@ func main() {
 	ctx, cancel = context.WithCancel(context.Background())
 	go func() {
 		sig := <-sigCh
-		fmt.Println("\nReceived signal:", sig)
+		slog.Info("Shutdown signal received", "signal", sig)
 		cancel() // Cancel the context when a signal is received
 	}()
-	go scheduler.Start(ctx)
 	go func() {
-		fmt.Println("Server listening on :8080")
+		if err := scheduler.Start(ctx); err != nil {
+			slog.Error("Scheduler start", "error", err)
+		}
+	}()
+	go func() {
+		slog.Info("Server listening on :8080")
 		if err := http.ListenAndServe(":8080", nil); err != nil && err != http.ErrServerClosed {
-			fmt.Printf("HTTP server ListenAndServe: %v\n", err)
+			slog.Error("HTTP server ListenAndServe", "error", err)
 		}
 	}()
 	ch := elector.Run(ctx)
 
 	// Wait for a termination signal
-	<-sigCh
-	fmt.Println("Shutdown signal received")
 	<-ch
 }
 
