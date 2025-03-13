@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hascheduler
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: hascheduler
+  template:
+    metadata:
+      labels:
+        app: hascheduler
+    spec:
+      containers:
+        - name: hascheduler
+          image: hascheduler:0.1.0 # Replace with your Go app image
+          env:
+            - name: REDIS_ADDR
+              value: "redis:6379"
+            - name: MONGO_URI
+              value: "mongodb://mongo:27017"
+          ports:
+            - containerPort: 8080 # Assuming your Go app exposes port 8080
+          readinessProbe: #important for correct scaling and health checks
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hascheduler
+spec:
+  selector:
+    app: hascheduler
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  type: NodePort # Or ClusterIP if you don't need external access
