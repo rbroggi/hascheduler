@@ -1,72 +1,46 @@
 # hascheduler
 
-Highly available and distributed scheduler demo using [leader-election](https://github.com/rbroggi/leaderelection) and 
-[MongoDB change streams](https://www.mongodb.com/docs/manual/changeStreams/).
+![hascheduler](./hascheduler.png)
 
-## Create a kind Cluster (if you haven't already):
+Highly available and distributed scheduler demo using [k8s leader-election](https://pkg.go.dev/k8s.io/client-go/tools/leaderelection) and 
+[MongoDB change streams](https://www.mongodb.com/docs/manual/changeStreams/). The environment is based on a Kubernetes 
+[Kind](https://kind.sigs.k8s.io/) cluster.
 
-```bash
-kind create cluster
+## Description
+
+This repository provides a demo of a distributed scheduler application that uses leader election to ensure only one instance is active at a time.
+The scheduler is notified of changes in a MongoDB collection using change streams and processes the changes accordingly. The passive replicas 
+are ready to take over if the active instance fails or shutdown. The application is containerized using Docker and deployed on a Kubernetes cluster.
+
+The demo includes:
+
+- A Go application that implements the scheduler logic. The application also exposes a CRUD HTTP API for creation, retrieval, and deletion of schedules.
+- A MongoDB instance to:
+  - store the schedules and notify the scheduler instances of changes using change streams.
+- A Kubernetes Lease object that is used along with the leader election library to ensure only one instance is active at a time.
+
+## Start the Demo
+
+```sh
+make up
+```
+The command above does:
+* Creates a kind cluster;
+* Builds the Go application `hascheduler` and a Docker image containing it;
+* Uploads the image to the kind cluster;
+* Creates a MongoDB instance and initializes a replica set (necessary for change streams);
+* Applies the manifests for the MongoDB and the `hascheduler` application.
+
+The demo uses a `hascheduler` deployment with 3 replicas. The leader election ensures that only one instance is active at a time. 
+The other instances are passive and ready to take over if the active instance fails or shutdown.
+
+To create, update, list, delete schedules you can find some utility methods in the Makefile. For example:
+
+```sh
+make create-schedule
+make get-schedules
+make update-schedule ID=<schedule_id>
+make delete-schedule ID=<schedule_id>
 ```
 
-Apply the Updated Manifests:
-
-```bash
-kubectl apply -f manifests/mongo.yaml
-kubectl apply -f manifests/hascheduler.yaml
-kubectl apply -f manifests/prometheus.yaml
-kubectl apply -f manifests/grafana.yaml
-```
-
-Verify Deployments:
-
-```bash
-kubectl get deployments
-kubectl get pods
-kubectl get services
-```
-Ensure all deployments and pods are running.
-
-Access Prometheus:
-Get the NodePort for the Prometheus service:
-
-```bash
-kubectl get service prometheus
-```
-
-Access Prometheus in your browser using http://localhost:<prometheus-nodeport>.
-
-Access Grafana:
-Get the NodePort for the Grafana service:
-
-```bash
-kubectl get service grafana
-```
-Access Grafana in your browser using http://localhost:<grafana-nodeport>.
-Login with user admin and password admin.
-
-Add Prometheus as a Data Source in Grafana:
-
-In Grafana, go to "Configuration" (gear icon) -> "Data Sources".
-Click "Add data source".
-Select "Prometheus".
-In the URL field, enter http://prometheus:9090.
-Click "Save & test". You should see "Data source is working".
-Now you can create dashboards to visualize your Go application metrics.
-Update Your Go Application:
-
-You'll need to modify your Go application to connect to MongoDB instead of Redis.
-Use a MongoDB Go driver (e.g., go.mongodb.org/mongo-driver/mongo).
-Use the MONGO_URI environment variable to get the connection string.
-Ensure your health endpoint now checks the connection to mongo.
-Ensure to expose metrics, if needed.
-
-```bash
-docker build -t hascheduler:latest .
-```
-
-Load image into kind
-
-```bash
-kind load docker-image hascheduler:latest
-```
+You can refer to the files under [payloads](./payloads) folder to manipulate the schedules to be created or updated.

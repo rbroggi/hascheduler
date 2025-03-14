@@ -1,3 +1,13 @@
+.PHONY: build load-image deploy rollout mongo-rs-init mongo-restart mongo-apply mongo-delete hascheduler-delete hascheduler-apply get-schedules create-schedule update-schedule delete-schedule shutdown kind-context kind-up up
+
+# Variables
+IMAGE_NAME = hascheduler:0.1.0
+KIND_CLUSTER_NAME = kind
+KIND_CONTROL_PLANE_IP = $(shell docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' kind-control-plane)
+HASCHEDULER_PORT = $(shell kubectl get service hascheduler -o jsonpath='{.spec.ports[0].nodePort}')
+HASCHEDULER_URL = $(KIND_CONTROL_PLANE_IP):$(HASCHEDULER_PORT)
+
+# MongoDB initialization commands
 WAIT_FOR_MASTER = while ! kubectl exec -ti mongo-0 -- mongosh --eval "db.runCommand( { isMaster: 1 } ).ismaster" 2>/dev/null | grep -q 'true'; do \
   echo "Waiting for isMaster to be true..."; \
   sleep 1; \
@@ -10,59 +20,77 @@ INIT_MONGO = while ! kubectl exec -ti mongo-0 -- mongosh --eval "rs.initiate().o
 done; \
 echo "rs.initiate() is now true."
 
+# Build Docker image
 build:
-	docker build -t hascheduler:0.1.0 .
+	docker build -t $(IMAGE_NAME) .
 
-load_image:
-	kind load docker-image hascheduler:0.1.0 --name kind
+# Load Docker image into kind cluster
+load-image:
+	kind load docker-image $(IMAGE_NAME) --name $(KIND_CLUSTER_NAME)
 
+# Deploy application
+deploy: build load-image
+	kubectl rollout restart deployment hascheduler
+
+# Rollout restart
 rollout:
 	kubectl rollout restart deployment hascheduler
 
-deploy: build load_image rollout
-
-mongo_rs_init:
+# Initialize MongoDB replica set
+mongo-rs-init:
 	$(INIT_MONGO)
 	$(WAIT_FOR_MASTER)
 
-mongo_restart: mongo_delete mongo_apply mongo_rs_init
+# Restart MongoDB
+mongo-restart: mongo-delete mongo-apply mongo-rs-init
 
-mongo_apply:
+# Apply MongoDB manifests
+mongo-apply:
 	kubectl apply -f manifests/mongo.yaml
 
-mongo_delete:
+# Delete MongoDB manifests
+mongo-delete:
 	kubectl delete -f manifests/mongo.yaml
 
-hascheduler_delete:
+# Delete hascheduler manifests
+hascheduler-delete:
 	kubectl delete -f manifests/hascheduler.yaml
 
-hascheduler_apply:
+# Apply hascheduler manifests
+hascheduler-apply:
 	kubectl apply -f manifests/hascheduler.yaml
 
-lease_apply:
+lease-apply:
 	kubectl apply -f manifests/lease.yaml
 	kubectl apply -f manifests/rbac.yaml
 
-get_schedules:
-	curl $(shell docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' kind-control-plane):$(shell kubectl get service hascheduler -o jsonpath='{.spec.ports[0].nodePort}')/schedules
+# Get schedules
+get-schedules:
+	curl $(HASCHEDULER_URL)/schedules | jq
 
-create_schedule:
-	curl -X POST -d '{"name": "test", "type": "duration", "definition": {"interval": "5s"}}' $(shell docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' kind-control-plane):$(shell kubectl get service hascheduler -o jsonpath='{.spec.ports[0].nodePort}')/schedules
+# Create a schedule
+create-schedule:
+	curl -X POST -d @payloads/create_schedule.json $(HASCHEDULER_URL)/schedules | jq
 
-update_schedule:
-	curl -X PUT -d '{"name": "test", "type": "duration", "definition": {"interval": "3s"}}' $(shell docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' kind-control-plane):$(shell kubectl get service hascheduler -o jsonpath='{.spec.ports[0].nodePort}')/schedules/$(ID)
+# Update a schedule
+update-schedule:
+	curl -X PUT -d @payloads/update_schedule.json $(HASCHEDULER_URL)/schedules/$(ID) | jq
 
-delete_schedule:
-	curl -X DELETE $(shell docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' kind-control-plane):$(shell kubectl get service hascheduler -o jsonpath='{.spec.ports[0].nodePort}')/schedules/$(ID)
+# Delete a schedule
+delete-schedule:
+	curl -X DELETE $(HASCHEDULER_URL)/schedules/$(ID) | jq
 
+# Shutdown kind cluster
 shutdown:
 	kind delete cluster
 
-kind_context:
-	kubectl config use-context kind-kind
-	kubectl cluster-info --context kind-kind
+# Set kind context
+kind-context:
+	kubectl config use-context kind-$(KIND_CLUSTER_NAME)
+	kubectl cluster-info --context kind-$(KIND_CLUSTER_NAME)
 
-kind_up:
+# Create kind cluster
+kind-up:
 	kind create cluster
 
-up: kind_up kind_context mongo_apply mongo_rs_init lease_apply build load_image hascheduler_apply
+up: kind-up kind-context mongo-apply mongo-rs-init lease-apply build load-image hascheduler-apply

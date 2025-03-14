@@ -1,0 +1,65 @@
+@startuml
+
+skinparam component {
+  BackgroundColor<<elector>> LightBlue
+  BorderColor<<elector>> DarkBlue
+  BackgroundColor<<scheduler>> LightBlue
+  BorderColor<<scheduler>> DarkBlue
+  BackgroundColor<<scheduler-leader>> Tomato
+  BackgroundColor<<elector-leader>> Tomato
+}
+
+component "HTTP Server" as HTTPServer {
+  [Schedules API Server] as APIServer
+}
+
+
+component "Pod/Process 1" as Pod1 <<candidate>> {
+  component "Elector 1" as Elector1 <<elector>> {
+  }
+  component "Scheduler 1\nSkips Schedules" as Scheduler1 <<scheduler>> {
+  }
+  Elector1 -> Scheduler1 : is leader? no
+}
+
+component "Pod/Process 2" as Pod2 <<candidate leader>> {
+  component "Elector 2" as Elector2 <<elector-leader>> {
+  }
+  component "Scheduler 2 \nTriggers Schedules" as Scheduler2 <<scheduler-leader>> {
+  }
+  Elector2 -> Scheduler2 : is leader? yes
+}
+
+component "Pod/Process N" as PodN <<candidate>> {
+  component "Elector N" as ElectorN <<elector>> {
+  }
+  component "Scheduler N\nSkips Schedules" as SchedulerN <<scheduler>> {
+  }
+  ElectorN -> SchedulerN : is leader? no
+}
+
+database "Mongo schedules store" as schedulesstore {
+  [Schedules]
+}
+
+component "Kubernetes API" as K8sAPI {
+  [Leader Election API] as LEAPI
+}
+
+database "lease store" as leasestore {
+  [Lease Object] as Lease
+}
+
+HTTPServer <--> schedulesstore : Create/Get/Update/Delete Schedules
+
+schedulesstore -d-> Scheduler1
+schedulesstore -d-> Scheduler2: Change-stream replication
+schedulesstore -d-> SchedulerN
+
+Elector1 <-d-> K8sAPI
+Elector2 <-d-> K8sAPI : Create/Update/Get Lease
+ElectorN <-d-> K8sAPI
+
+K8sAPI <-d-> leasestore : Create/Update/Get Lease
+
+@enduml

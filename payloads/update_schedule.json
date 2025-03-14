@@ -1,0 +1,7 @@
+{
+  "name": "test",
+  "type": "duration",
+  "definition": {
+    "interval": "3s"
+  }
+}
