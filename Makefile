@@ -10,17 +10,23 @@ INIT_MONGO = while ! kubectl exec -ti mongo-0 -- mongosh --eval "rs.initiate().o
 done; \
 echo "rs.initiate() is now true."
 
-deploy:
+build:
 	docker build -t hascheduler:0.1.0 .
+
+load_image:
 	kind load docker-image hascheduler:0.1.0 --name kind
+
+deploy: build load_image
 	kubectl rollout restart deployment hascheduler
 
 rollout:
 	kubectl rollout restart deployment hascheduler
 
-mongo_restart: mongo_delete mongo_apply
+mongo_rs_init:
 	$(INIT_MONGO)
 	$(WAIT_FOR_MASTER)
+
+mongo_restart: mongo_delete mongo_apply mongo_rs_init
 
 mongo_apply:
 	kubectl apply -f manifests/mongo.yaml
@@ -45,3 +51,15 @@ update_schedule:
 
 delete_schedule:
 	curl -X DELETE $(shell docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' kind-control-plane):$(shell kubectl get service hascheduler -o jsonpath='{.spec.ports[0].nodePort}')/schedules/$(ID)
+
+shutdown:
+	kind delete cluster
+
+kind_context:
+	kubectl config use-context kind-kind
+	kubectl cluster-info --context kind-kind
+
+kind_up:
+	kind create cluster
+
+up: kind_up kind_context mongo_apply mongo_rs_init build load_image hascheduler_apply

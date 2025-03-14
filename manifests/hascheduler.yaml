@@ -16,8 +16,6 @@ spec:
         - name: hascheduler
           image: hascheduler:0.1.0 # Replace with your Go app image
           env:
-            - name: REDIS_ADDR
-              value: "redis:6379"
             - name: MONGO_URI
               value: "mongodb://mongo:27017/?connect=direct"
             - name: LOG_LEVEL
