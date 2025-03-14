@@ -21,9 +21,9 @@ type Schedule struct {
 }
 
 type ScheduleDefinition struct {
-	CronExpression string         `json:"cron_expression" bson:"cron_expression"`
-	Times          []time.Time    `json:"times" bson:"times"`
-	Interval       StringDuration `json:"interval" bson:"interval"`
+	CronExpression string         `json:"cron_expression,omitempty" bson:"cron_expression,omitempty"`
+	Times          []time.Time    `json:"times,omitempty" bson:"times,omitempty"`
+	Interval       StringDuration `json:"interval,omitempty" bson:"interval,omitempty"`
 }
 
 // StringDuration is a custom type for marshaling/unmarshaling time.Duration as a string.

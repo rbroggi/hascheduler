@@ -1,0 +1,7 @@
+{
+  "name": "Cron Test",
+  "type": "cron",
+  "definition": {
+    "cron_expression": "* * * * * *"
+  }
+}
