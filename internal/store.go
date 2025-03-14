@@ -74,9 +74,10 @@ func (s *Store) UpdateSchedule(
 ) error {
 	ctxTimeout, cnl := context.WithTimeout(ctx, operationTimeout)
 	defer cnl()
+	update := bson.D{{Key: "$set", Value: schedule}}
 	_, err := s.schedules.UpdateOne(ctxTimeout,
 		bson.M{"_id": schedule.ID},
-		schedule)
+		update)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return errScheduleNotFound

@@ -13,22 +13,7 @@ func NewServer(store *Store) *Server {
 	return &Server{store: store}
 }
 
-func (s *Server) Handle(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		s.get(w, r)
-	case http.MethodPost:
-		s.create(w, r)
-	case http.MethodPut:
-		s.update(w, r)
-	case http.MethodDelete:
-		s.delete(w, r)
-	default:
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-	}
-}
-
-func (s *Server) get(w http.ResponseWriter, r *http.Request) {
+func (s *Server) List(w http.ResponseWriter, r *http.Request) {
 	schedules, err := s.store.FindSchedules(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -44,7 +29,7 @@ func (s *Server) get(w http.ResponseWriter, r *http.Request) {
 	w.Write(p)
 }
 
-func (s *Server) create(w http.ResponseWriter, r *http.Request) {
+func (s *Server) Create(w http.ResponseWriter, r *http.Request) {
 	// unmarshal request body into schedule
 	var schedule Schedule
 	if err := json.NewDecoder(r.Body).Decode(&schedule); err != nil {
@@ -63,10 +48,12 @@ func (s *Server) create(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	w.WriteHeader(http.StatusOK)
 	w.Write(p)
 }
 
-func (s *Server) update(w http.ResponseWriter, r *http.Request) {
+func (s *Server) Update(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
 	// unmarshal request body into schedule
 	var schedule Schedule
 	if err := json.NewDecoder(r.Body).Decode(&schedule); err != nil {
@@ -74,15 +61,23 @@ func (s *Server) update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// update schedule
+	schedule.ID = id
 	if err := s.store.UpdateSchedule(r.Context(), &schedule); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	// write schedule to response
+	p, err := json.Marshal(schedule)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
+	w.Write(p)
 }
 
-func (s *Server) delete(w http.ResponseWriter, r *http.Request) {
-	id := r.URL.Query().Get("id")
+func (s *Server) Delete(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
 	// delete schedule
 	schedule, err := s.store.DeleteSchedule(r.Context(), id)
 	if err != nil {
@@ -96,5 +91,6 @@ func (s *Server) delete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	w.WriteHeader(http.StatusOK)
 	w.Write(p)
 }

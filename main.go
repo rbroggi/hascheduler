@@ -53,8 +53,11 @@ func main() {
 	}
 
 	server := internal.NewServer(store)
+	http.HandleFunc("GET /schedules", server.List)
+	http.HandleFunc("POST /schedules", server.Create)
+	http.HandleFunc("PUT /schedules/{id}", server.Update)
+	http.HandleFunc("DELETE /schedules/{id}", server.Delete)
 	http.HandleFunc("/health", healthHandler)
-	http.HandleFunc("/schedules", server.Handle)
 	http.HandleFunc("/", handler)
 
 	sigCh := make(chan os.Signal, 1)

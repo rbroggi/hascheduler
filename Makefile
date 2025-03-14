@@ -10,9 +10,6 @@ INIT_MONGO = while ! kubectl exec -ti mongo-0 -- mongosh --eval "rs.initiate().o
 done; \
 echo "rs.initiate() is now true."
 
-apply_hascheduler:
-	kubectl apply -f manifests/hascheduler.yaml
-
 deploy:
 	docker build -t hascheduler:0.1.0 .
 	kind load docker-image hascheduler:0.1.0 --name kind
@@ -21,35 +18,30 @@ deploy:
 rollout:
 	kubectl rollout restart deployment hascheduler
 
-restart_mongo:
-	kubectl delete -f manifests/mongo.yaml
-	kubectl apply -f manifests/mongo.yaml
+mongo_restart: mongo_delete mongo_apply
 	$(INIT_MONGO)
 	$(WAIT_FOR_MASTER)
 
-delete_hascheduler:
-	kubectl delete -f manifests/hascheduler.yaml
-
-apply_hascheduler:
-	kubectl apply -f manifests/hascheduler.yaml
-
-apply_mongo:
+mongo_apply:
 	kubectl apply -f manifests/mongo.yaml
 
-get_service_port:
-	kubectl get service hascheduler -o jsonpath='{.spec.ports[0].nodePort}'
+mongo_delete:
+	kubectl delete -f manifests/mongo.yaml
 
-curl_hascheduler:
-	curl $(shell docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' kind-control-plane):$(shell kubectl get service hascheduler -o jsonpath='{.spec.ports[0].nodePort}')
+hascheduler_delete:
+	kubectl delete -f manifests/hascheduler.yaml
+
+hascheduler_apply:
+	kubectl apply -f manifests/hascheduler.yaml
 
 get_schedules:
 	curl $(shell docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' kind-control-plane):$(shell kubectl get service hascheduler -o jsonpath='{.spec.ports[0].nodePort}')/schedules
 
-create_schedules:
+create_schedule:
 	curl -X POST -d '{"name": "test", "type": "duration", "definition": {"interval": "5s"}}' $(shell docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' kind-control-plane):$(shell kubectl get service hascheduler -o jsonpath='{.spec.ports[0].nodePort}')/schedules
 
-delete_schedule:
-	curl -X DELETE $(shell docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' kind-control-plane):$(shell kubectl get service hascheduler -o jsonpath='{.spec.ports[0].nodePort}')/schedules/0eb0e099-1bbf-4d12-be44-58245e0ce4c3
+update_schedule:
+	curl -X PUT -d '{"name": "test", "type": "duration", "definition": {"interval": "3s"}}' $(shell docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' kind-control-plane):$(shell kubectl get service hascheduler -o jsonpath='{.spec.ports[0].nodePort}')/schedules/$(ID)
 
-wait_for_mongo:
-	$(WAIT_FOR_MASTER)
+delete_schedule:
+	curl -X DELETE $(shell docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' kind-control-plane):$(shell kubectl get service hascheduler -o jsonpath='{.spec.ports[0].nodePort}')/schedules/$(ID)
