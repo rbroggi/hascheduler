@@ -5,15 +5,15 @@ import (
 	"net/http"
 )
 
-type Server struct {
+type Service struct {
 	store *Store
 }
 
-func NewServer(store *Store) *Server {
-	return &Server{store: store}
+func NewService(store *Store) *Service {
+	return &Service{store: store}
 }
 
-func (s *Server) List(w http.ResponseWriter, r *http.Request) {
+func (s *Service) List(w http.ResponseWriter, r *http.Request) {
 	schedules, err := s.store.FindSchedules(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -29,7 +29,7 @@ func (s *Server) List(w http.ResponseWriter, r *http.Request) {
 	w.Write(p)
 }
 
-func (s *Server) Create(w http.ResponseWriter, r *http.Request) {
+func (s *Service) Create(w http.ResponseWriter, r *http.Request) {
 	// unmarshal request body into schedule
 	var schedule Schedule
 	if err := json.NewDecoder(r.Body).Decode(&schedule); err != nil {
@@ -52,7 +52,7 @@ func (s *Server) Create(w http.ResponseWriter, r *http.Request) {
 	w.Write(p)
 }
 
-func (s *Server) Update(w http.ResponseWriter, r *http.Request) {
+func (s *Service) Update(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	// unmarshal request body into schedule
 	var schedule Schedule
@@ -76,7 +76,7 @@ func (s *Server) Update(w http.ResponseWriter, r *http.Request) {
 	w.Write(p)
 }
 
-func (s *Server) Delete(w http.ResponseWriter, r *http.Request) {
+func (s *Service) Delete(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	// delete schedule
 	schedule, err := s.store.DeleteSchedule(r.Context(), id)

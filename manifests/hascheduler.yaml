@@ -20,6 +20,8 @@ spec:
               value: "redis:6379"
             - name: MONGO_URI
               value: "mongodb://mongo:27017/?connect=direct"
+            - name: LOG_LEVEL
+              value: "info"
           ports:
             - containerPort: 8080 # Assuming your Go app exposes port 8080
           readinessProbe: #important for correct scaling and health checks

@@ -47,16 +47,16 @@ func NewElector(db *mongo.Database) (*Elector, error) {
 	return &Elector{elector: el}, nil
 }
 
-func (el *Elector) Run(ctx context.Context) <-chan struct{} {
-	return el.elector.Run(ctx)
-}
-
 type Elector struct {
 	elector *leaderelection.Elector
 }
 
-func (e *Elector) IsLeader(ctx context.Context) error {
-	if e.elector.IsLeader() {
+func (el *Elector) Run(ctx context.Context) <-chan struct{} {
+	return el.elector.Run(ctx)
+}
+
+func (el *Elector) IsLeader(ctx context.Context) error {
+	if el.elector.IsLeader() {
 		return nil
 	}
 	return errors.New("not a leader")

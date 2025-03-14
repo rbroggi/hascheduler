@@ -19,6 +19,11 @@ const (
 	schedulesCollectionName = "schedules"
 )
 
+var (
+	errScheduleAlreadyExists = errors.New("schedule already exists")
+	errScheduleNotFound      = errors.New("schedule not found")
+)
+
 type Store struct {
 	schedules *mongo.Collection
 }

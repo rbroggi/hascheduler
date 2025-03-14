@@ -101,13 +101,6 @@ func parsableWithSeconds(expression string) bool {
 	return err == nil
 }
 
-func (s *Scheduler) job(schedule Schedule) func() error {
-	return func() error {
-		slog.With("schedule", schedule).Info("running schedule")
-		return nil
-	}
-}
-
 // watchSchedules is a blocking call that terminates upon canceling incoming context
 func (s *Scheduler) watchSchedules(ctx context.Context) error {
 	scheduleChanges, err := s.store.WatchSchedules(ctx)
@@ -155,10 +148,7 @@ func (s *Scheduler) upsertSchedule(sch Schedule) error {
 	if ok {
 		job, err := s.scheduler.Update(localID,
 			definition,
-			gocron.NewTask(func() error {
-				slog.With("schedule", sch).Info("running schedule")
-				return nil
-			}),
+			gocron.NewTask(s.task(sch)),
 			gocron.WithName(sch.Name),
 		)
 		if err != nil {
@@ -170,10 +160,7 @@ func (s *Scheduler) upsertSchedule(sch Schedule) error {
 	// insert
 	job, err := s.scheduler.NewJob(
 		definition,
-		gocron.NewTask(func() error {
-			slog.With("schedule", sch).Info("running schedule")
-			return nil
-		}),
+		gocron.NewTask(s.task(sch)),
 		gocron.WithName(sch.Name),
 	)
 	if err != nil {
@@ -202,4 +189,11 @@ func (s *Scheduler) removeSchedule(id string) error {
 		With("schedule.id", id).
 		Info("removed scheduled job")
 	return nil
+}
+
+func (s *Scheduler) task(schedule Schedule) func() error {
+	return func() error {
+		slog.With("schedule", schedule).Info("running schedule")
+		return nil
+	}
 }
