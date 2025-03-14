@@ -5,8 +5,8 @@ skinparam component {
   BorderColor<<elector>> DarkBlue
   BackgroundColor<<scheduler>> LightBlue
   BorderColor<<scheduler>> DarkBlue
-  BackgroundColor<<scheduler-leader>> Tomato
-  BackgroundColor<<elector-leader>> Tomato
+  BackgroundColor<<scheduler-leader>> PaleGreen
+  BackgroundColor<<elector-leader>> PaleGreen
 }
 
 component "HTTP Server" as HTTPServer {
