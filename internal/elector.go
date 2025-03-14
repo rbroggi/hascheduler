@@ -3,56 +3,91 @@ package internal
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/rbroggi/leaderelection"
-	"github.com/rbroggi/mongoleasestore"
-	"go.mongodb.org/mongo-driver/mongo"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/leaderelection"
+	"k8s.io/client-go/tools/leaderelection/resourcelock"
 )
 
-func NewElector(db *mongo.Database) (*Elector, error) {
+const (
+	defaultNamespace = "default"
+	defaultLeaseName = "hascheduler-lease"
+)
+
+func NewElector() (*Elector, error) {
 	identity := os.Getenv("HOSTNAME")
 	if identity == "" {
 		identity = uuid.New().String()
 	}
-	s, err := mongoleasestore.NewStore(mongoleasestore.Args{
-		LeaseCollection: db.Collection("leases"),
-		LeaseKey:        "lease-key",
-	})
+	config, err := rest.InClusterConfig()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get in-cluster config: %w", err)
 	}
-	el, err := leaderelection.NewElector(leaderelection.ElectorConfig{
-		LeaseDuration:   3 * time.Second,
-		RetryPeriod:     300 * time.Millisecond,
-		LeaseStore:      s,
-		CandidateID:     identity,
+	kubeClient, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Kubernetes client: %w", err)
+	}
+
+	leaseName := os.Getenv("LEASE_KEY")
+	if leaseName == "" {
+		leaseName = defaultLeaseName
+	}
+
+	l, err := resourcelock.New(
+		resourcelock.LeasesResourceLock,
+		defaultNamespace,
+		leaseName,
+		kubeClient.CoreV1(),
+		kubeClient.CoordinationV1(),
+		resourcelock.ResourceLockConfig{
+			Identity: identity,
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create resource lock: %w", err)
+	}
+
+	leaderElectionConfig := &leaderelection.LeaderElectionConfig{
+		Lock:          l,
+		LeaseDuration: 5 * time.Second,
+		RenewDeadline: 3 * time.Second,
+		RetryPeriod:   1 * time.Second,
+		Callbacks: leaderelection.LeaderCallbacks{
+			OnStartedLeading: func(ctx context.Context) {
+				slog.Info("Started leading", "candidate", identity)
+			},
+			OnStoppedLeading: func() {
+				slog.Info("Stopped leading", "candidate", identity)
+			},
+			OnNewLeader: func(currentLeaderIdentity string) {
+				slog.Info("New leader elected", "candidate", identity, "leader", identity)
+			},
+		},
+		// to ensure faster leader transfer
 		ReleaseOnCancel: true,
-		OnStartedLeading: func(candidateIdentity string) {
-			slog.Info("Started leading", "candidate", candidateIdentity)
-		},
-		OnStoppedLeading: func(candidateIdentity string) {
-			slog.Info("Stopped leading", "candidate", candidateIdentity)
-		},
-		OnNewLeader: func(candidateIdentity string, newLeaderIdentity string) {
-			slog.Info("New leader elected", "candidate", candidateIdentity, "leader", newLeaderIdentity)
-		},
-	})
-	if err != nil {
-		return nil, err
 	}
-	return &Elector{elector: el}, nil
+
+	// 2. Prepare the leader election configuration
+	le, err := leaderelection.NewLeaderElector(*leaderElectionConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create leader elector: %w", err)
+	}
+
+	return &Elector{elector: le}, nil
 }
 
 type Elector struct {
-	elector *leaderelection.Elector
+	elector *leaderelection.LeaderElector
 }
 
-func (el *Elector) Run(ctx context.Context) <-chan struct{} {
-	return el.elector.Run(ctx)
+func (el *Elector) Run(ctx context.Context) {
+	el.elector.Run(ctx)
 }
 
 func (el *Elector) IsLeader(ctx context.Context) error {

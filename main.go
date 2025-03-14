@@ -31,7 +31,7 @@ func main() {
 	client, db := connectToMongoDB(mongoURI)
 	defer client.Disconnect(context.Background())
 
-	elector := initializeElector(db)
+	elector := initializeElector()
 	store := internal.NewStore(db)
 	scheduler := initializeScheduler(elector, store)
 	mux := initializeHttpServeMux(store)
@@ -78,8 +78,8 @@ func connectToMongoDB(mongoURI string) (*mongo.Client, *mongo.Database) {
 	return client, db
 }
 
-func initializeElector(db *mongo.Database) *internal.Elector {
-	elector, err := internal.NewElector(db)
+func initializeElector() *internal.Elector {
+	elector, err := internal.NewElector()
 	handleError("Failed to create elector", err)
 	return elector
 }
@@ -129,9 +129,12 @@ func run(
 			slog.Error("Scheduler start", "error", err)
 		}
 	}()
-
-	ch := elector.Run(ctx)
-	<-ch
+	done := make(chan struct{}, 1)
+	go func() {
+		elector.Run(ctx)
+		done <- struct{}{}
+	}()
+	<-done
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {

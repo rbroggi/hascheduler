@@ -16,11 +16,10 @@ build:
 load_image:
 	kind load docker-image hascheduler:0.1.0 --name kind
 
-deploy: build load_image
-	kubectl rollout restart deployment hascheduler
-
 rollout:
 	kubectl rollout restart deployment hascheduler
+
+deploy: build load_image rollout
 
 mongo_rs_init:
 	$(INIT_MONGO)
@@ -39,6 +38,10 @@ hascheduler_delete:
 
 hascheduler_apply:
 	kubectl apply -f manifests/hascheduler.yaml
+
+lease_apply:
+	kubectl apply -f manifests/lease.yaml
+	kubectl apply -f manifests/rbac.yaml
 
 get_schedules:
 	curl $(shell docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' kind-control-plane):$(shell kubectl get service hascheduler -o jsonpath='{.spec.ports[0].nodePort}')/schedules
@@ -62,4 +65,4 @@ kind_context:
 kind_up:
 	kind create cluster
 
-up: kind_up kind_context mongo_apply mongo_rs_init build load_image hascheduler_apply
+up: kind_up kind_context mongo_apply mongo_rs_init lease_apply build load_image hascheduler_apply
