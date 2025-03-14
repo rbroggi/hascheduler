@@ -26,3 +26,9 @@ go.work.sum
 
 # binary
 bin/
+
+# IDE
+.idea
+
+# vendor folder for dependency management
+vendor/
