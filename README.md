@@ -49,4 +49,4 @@ You can refer to the files under [payloads](./payloads) folder to manipulate the
 
 After running `make up` here is a screencast of the demo:
 
-![demo](./demo.mp4)
+![demo](./demo.gif)
