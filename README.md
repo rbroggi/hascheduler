@@ -44,3 +44,9 @@ make delete-schedule ID=<schedule_id>
 ```
 
 You can refer to the files under [payloads](./payloads) folder to manipulate the schedules to be created or updated.
+
+## Demo Video
+
+After running `make up` here is a screencast of the demo:
+
+![demo](./demo.mp4)
