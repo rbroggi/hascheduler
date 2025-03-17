@@ -2,9 +2,9 @@
 
 ![hascheduler](./hascheduler.png)
 
-Highly available and distributed scheduler demo using [leader-election](https://github.com/rbroggi/leaderelection) and 
-[MongoDB change streams](https://www.mongodb.com/docs/manual/changeStreams/). The environment is based on a Kubernetes 
-[Kind](https://kind.sigs.k8s.io/) cluster.
+Highly available and distributed scheduler demo using [leader-election](https://github.com/rbroggi/leaderelection), 
+[MongoDB change streams](https://www.mongodb.com/docs/manual/changeStreams/) and [gocron library](https://github.com/go-co-op/gocron). 
+The environment is based on a Kubernetes [Kind](https://kind.sigs.k8s.io/) cluster.
 
 ## Description
 
